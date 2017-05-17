@@ -15,7 +15,7 @@ global server
 global ip
 
 def DataSimulationThread(update_interval, e):
-	print 'Presense Thread'
+	print 'Data simulation thread started'
 	
 	# Allocate a client	
 	client = ModbusTcpClient(ip)
@@ -32,12 +32,12 @@ def DataSimulationThread(update_interval, e):
 
 			client.write_coil(21, value)
 			result = client.read_coils(21,1)
-			print 'Presense is currently ' + str(result.bits[0])
+			print 'Coil 20 is currently ' + str(result.bits[0])
 
 		else:
 			break
 	client.close()
-	print 'Presense Thread stopped'
+	print 'Data simulation thread stopped'
 
 
 def ServerThread(e):
@@ -91,7 +91,7 @@ if __name__ == "__main__":
                 while True:
                         time.sleep(1)
 	except KeyboardInterrupt:
-		print "Stopping program"
+		print "Keyboard interrupt acknowledged, stopping program."
 	except Exception:
 		traceback.print_exc(file=sys.stdout)	
 	
