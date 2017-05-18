@@ -24,14 +24,26 @@ def C2F(c):
 def Flt2Disp(f):
         return "{0:.2f}".format(f)
 
+def LEDMatrixDisplayThread(update_interval, e):
+        global tempInF
+
+        # Assuming that the API is multithreaded
+        sense = SenseHat()
+
+        # FIXME: Adjust rotation for my desktop
+	sense.set_rotation(180)	
+
+        while True:
+		if not e.isSet():                        
+                        # Display temp on the LED matrix (takes about a second)                        
+                        sense.show_message(Flt2Disp(tempInF))
+
 def DataSimulationThread(update_interval, e):
-	print 'Data simulation thread started'
+        global tempInF
+	print 'Data simulation thread started'	
 
 	# Allocate Sense HAT interface
-	sense = SenseHat()
-
-	# FIXME: Adjust rotation for my desktop
-	sense.set_rotation(180)	
+	sense = SenseHat()	
 	
 	# Allocate a client	
 	client = ModbusTcpClient(cip)
@@ -40,8 +52,9 @@ def DataSimulationThread(update_interval, e):
 	value = 0
 	while True:
 		if not e.isSet():
-			time.sleep(1)
-
+                        # Give up a time slice
+                        time.sleep(0.1)
+                        
 			# Retrieve temp
 			tempInF = C2F(sense.get_temperature())			
 			
@@ -68,13 +81,9 @@ def DataSimulationThread(update_interval, e):
 			client.write_register(3, roll)
 			client.write_register(4, yaw)
 
-                        # Display temp on the LED matrix
-			tempStrInF = Flt2Disp(tempInF)
-			sense.show_message(tempStrInF)
-
                         # Log our values
                         print '**********************************************'
-			print 'Current temperature is ' + tempStrInF
+			print 'Current temperature is ' + str(tempInF)
 			print 'Current humidity is ' + str(humidity)
 			print 'Current pitch is ' + str(pitch)
 			print 'Current roll is ' + str(roll)
@@ -116,6 +125,9 @@ if __name__ == "__main__":
 	global server
 	global cip
 	global sip
+	global tempInF
+	tempInF = 0
+	
 	print "=== Modbus Device ==="
 	parser = argparse.ArgumentParser(description='Modbus server')
 	parser.add_argument('cip', nargs='?', default='localhost', help='IP adress of modbus client')
@@ -128,11 +140,13 @@ if __name__ == "__main__":
 	
 	thServer = threading.Thread(name='ServerThread', target=ServerThread, args=(e_exit,))
 	thDataSimulation = threading.Thread(name='DataSimulationThread', target=DataSimulationThread, args=(1, e_exit,))
+	thLEDMatrixDisplay = threading.Thread(name='LEDMatrixDisplayThread', target=LEDMatrixDisplayThread, args=(1, e_exit,))
 	thServer.start()
 	time.sleep(1)
 	
 	# Start clients
-	thDataSimulation.start()	
+	thDataSimulation.start()
+	thLEDMatrixDisplay.start()
 
 	# Wait for keyboard interrupt
 	try:
@@ -143,7 +157,6 @@ if __name__ == "__main__":
 	except Exception:
 		traceback.print_exc(file=sys.stdout)	
 	
-	
 	# Set stop event for clients
 	e_exit.set()
 
@@ -151,6 +164,9 @@ if __name__ == "__main__":
 	# or thDataSimulation.isAlive()
 	while thDataSimulation.isAlive():
 		time.sleep(0.01)
+
+	while thLEDMatrixDisplay.isAlive():
+                time.sleep(0.01)
 	
 	# Shutdown server
 	server.shutdown()
