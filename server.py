@@ -52,8 +52,8 @@ def DataSimulationThread(update_interval, e):
 	value = 0
 	while True:
 		if not e.isSet():
-                        # Give up a time slice
-                        time.sleep(0.1)
+                        # Give some time back to the system
+                        time.sleep(0.3)
                         
 			# Retrieve temp
 			tempInF = C2F(sense.get_temperature())			
@@ -76,18 +76,10 @@ def DataSimulationThread(update_interval, e):
 			roll = orientation['roll']
 			yaw = orientation['yaw']
 
-			# TODO: Write pitch, roll, and yaw to pymodbus registers
+			# Write pitch, roll, and yaw to pymodbus registers
 			client.write_register(2, pitch)
 			client.write_register(3, roll)
-			client.write_register(4, yaw)
-
-                        # Log our values
-                        print '**********************************************'
-			print 'Current temperature is ' + str(tempInF)
-			print 'Current humidity is ' + str(humidity)
-			print 'Current pitch is ' + str(pitch)
-			print 'Current roll is ' + str(roll)
-			print 'Current yaw is ' + str(yaw)
+			client.write_register(4, yaw)                        
 
 		else:
 			break
@@ -146,7 +138,7 @@ if __name__ == "__main__":
 	
 	# Start clients
 	thDataSimulation.start()
-	thLEDMatrixDisplay.start()
+	# thLEDMatrixDisplay.start()
 
 	# Wait for keyboard interrupt
 	try:
@@ -160,13 +152,13 @@ if __name__ == "__main__":
 	# Set stop event for clients
 	e_exit.set()
 
-	# Wait until all clients stop
-	# or thDataSimulation.isAlive()
+	# Wait for data thread to stop
 	while thDataSimulation.isAlive():
-		time.sleep(0.01)
+		time.sleep(0.1)
 
+        # Wait for LED Matrix Display thread to stop
 	while thLEDMatrixDisplay.isAlive():
-                time.sleep(0.01)
+                time.sleep(0.1)
 	
 	# Shutdown server
 	server.shutdown()
