@@ -26,24 +26,25 @@ def Flt2Disp(f):
 
 def LEDMatrixDisplayThread(update_interval, e):
         global tempInF
-
-        # Assuming that the API is multithreaded
-        sense = SenseHat()
-
-        # FIXME: Adjust rotation for my desktop
-	sense.set_rotation(180)	
-
+        global sense
+        global lock
         while True:
-		if not e.isSet():                        
-                        # Display temp on the LED matrix (takes about a second)                        
+		if not e.isSet():
+                        # Grab the latest value
+                        temp = 0
+                        with lock:
+                                temp = tempInF
+
+                        # Is API thread safe?
                         sense.show_message(Flt2Disp(tempInF))
+                else:
+                        break
 
-def DataSimulationThread(update_interval, e):
+def DataCollectionThread(update_interval, e):
         global tempInF
-	print 'Data simulation thread started'	
-
-	# Allocate Sense HAT interface
-	sense = SenseHat()	
+        global sense
+        global lock
+	print 'Data simulation thread started'
 	
 	# Allocate a client	
 	client = ModbusTcpClient(cip)
@@ -54,32 +55,33 @@ def DataSimulationThread(update_interval, e):
 		if not e.isSet():
                         # Give some time back to the system
                         time.sleep(0.3)
-                        
-			# Retrieve temp
-			tempInF = C2F(sense.get_temperature())			
-			
-			# Write temp to pymodbus register
-			client.write_register(0, tempInF)
 
-			# Retrieve humidity
-			humidity = sense.get_humidity ()
+                        with lock:                        
+                                # Retrieve temp
+                                tempInF = C2F(sense.get_temperature())			
+                                
+                                # Write temp to pymodbus register
+                                client.write_register(0, tempInF)
 
-			# Write humidity to pymodbus register
-			client.write_register(1, humidity)
+                                # Retrieve humidity
+                                humidity = sense.get_humidity ()
 
-			# Enable the gyroscope
-			sense.set_imu_config(False, True, False)
+                                # Write humidity to pymodbus register
+                                client.write_register(1, humidity)
 
-			# Get orientation
-			orientation = sense.get_orientation_degrees()
-			pitch = orientation['pitch']
-			roll = orientation['roll']
-			yaw = orientation['yaw']
+                                # Enable the gyroscope
+                                sense.set_imu_config(False, True, False)
 
-			# Write pitch, roll, and yaw to pymodbus registers
-			client.write_register(2, pitch)
-			client.write_register(3, roll)
-			client.write_register(4, yaw)                        
+                                # Get orientation
+                                orientation = sense.get_orientation_degrees()
+                                pitch = orientation['pitch']
+                                roll = orientation['roll']
+                                yaw = orientation['yaw']
+
+                                # Write pitch, roll, and yaw to pymodbus registers
+                                client.write_register(2, pitch)
+                                client.write_register(3, roll)
+                                client.write_register(4, yaw)
 
 		else:
 			break
@@ -118,7 +120,15 @@ if __name__ == "__main__":
 	global cip
 	global sip
 	global tempInF
-	tempInF = 0
+	global sense
+	global lock
+
+        # Allocate globals
+        tempInF = 0
+        sense = SenseHat()
+        # FIXME: Adjust rotation for my desktop
+	sense.set_rotation(180)	
+        lock = threading.Lock()
 	
 	print "=== Modbus Device ==="
 	parser = argparse.ArgumentParser(description='Modbus server')
@@ -131,14 +141,14 @@ if __name__ == "__main__":
 	e_exit = threading.Event()
 	
 	thServer = threading.Thread(name='ServerThread', target=ServerThread, args=(e_exit,))
-	thDataSimulation = threading.Thread(name='DataSimulationThread', target=DataSimulationThread, args=(1, e_exit,))
+	thDataCollection = threading.Thread(name='DataCollectionThread', target=DataCollectionThread, args=(1, e_exit,))
 	thLEDMatrixDisplay = threading.Thread(name='LEDMatrixDisplayThread', target=LEDMatrixDisplayThread, args=(1, e_exit,))
 	thServer.start()
 	time.sleep(1)
 	
 	# Start clients
-	thDataSimulation.start()
-	# thLEDMatrixDisplay.start()
+	thDataCollection.start()
+	thLEDMatrixDisplay.start()
 
 	# Wait for keyboard interrupt
 	try:
@@ -153,7 +163,7 @@ if __name__ == "__main__":
 	e_exit.set()
 
 	# Wait for data thread to stop
-	while thDataSimulation.isAlive():
+	while thDataCollection.isAlive():
 		time.sleep(0.1)
 
         # Wait for LED Matrix Display thread to stop
