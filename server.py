@@ -3,6 +3,7 @@ import argparse
 import sys, traceback
 import threading
 import pymodbus
+import random
 
 from pymodbus.server.async import StartTcpServer
 from pymodbus.device import ModbusDeviceIdentification
@@ -14,6 +15,12 @@ from pymodbus.server.sync import ModbusTcpServer
 global server
 global ip
 
+def GetCurrentTemperature():
+        return random.uniform(70, 95)
+
+def GetCurrentHumidity():
+        return random.uniform(80, 100)
+
 def DataSimulationThread(update_interval, e):
 	print 'Data simulation thread started'
 	
@@ -24,15 +31,14 @@ def DataSimulationThread(update_interval, e):
 	value = 0
 	while True:
 		if not e.isSet():
-			time.sleep(1)
-			if (value == 0):
-				value = 1
-			else:
-				value = 0
+			time.sleep(1)			
 
-			client.write_coil(21, value)
-			result = client.read_coils(21,1)
-			print 'Coil 20 is currently ' + str(result.bits[0])
+			#TODO: Write temperature to register			
+			#TODO: Write temperature to display			
+			#client.write_registers(0, GetCurrentTemperature())
+			#result = client.read_registers(0, 1)
+			#print 'Register 0 is currently ' + str(result[0])
+			print 'Nothing to see here'
 
 		else:
 			break
