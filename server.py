@@ -21,8 +21,10 @@ global sip
 def C2F(c):
         return c*9/5 + 32
 
+
 def Flt2Disp(f):
         return "{0:.2f}".format(f)
+
 
 def LEDMatrixDisplayThread(update_interval, e):
         global tempInF
@@ -39,6 +41,7 @@ def LEDMatrixDisplayThread(update_interval, e):
                         sense.show_message(Flt2Disp(tempInF))
                 else:
                         break
+
 
 def DataCollectionThread(update_interval, e):
         global tempInF
@@ -60,14 +63,8 @@ def DataCollectionThread(update_interval, e):
                                 # Retrieve temp
                                 tempInF = C2F(sense.get_temperature())			
                                 
-                                # Write temp to pymodbus register
-                                client.write_register(0, tempInF)
-
                                 # Retrieve humidity
                                 humidity = sense.get_humidity ()
-
-                                # Write humidity to pymodbus register
-                                client.write_register(1, humidity)
 
                                 # Enable the gyroscope
                                 sense.set_imu_config(False, True, False)
@@ -78,15 +75,27 @@ def DataCollectionThread(update_interval, e):
                                 roll = orientation['roll']
                                 yaw = orientation['yaw']
 
+                                # Enable the compass (disables the gyroscope)
+                                north = sense.get_compass()
+
+                                # Write temp to pymodbus register
+                                client.write_register(0, tempInF)
+                                        
+                                # Write humidity to pymodbus register
+                                client.write_register(1, humidity)
+
                                 # Write pitch, roll, and yaw to pymodbus registers
                                 client.write_register(2, pitch)
                                 client.write_register(3, roll)
-                                client.write_register(4, yaw)
+                                client.write_register(4, yaw)                                
 
+                                # Write compass to pymodbus register
+                                client.write_register(5, north)
 		else:
 			break
 	client.close()
 	print 'Data simulation thread stopped'
+	
 
 def ServerThread(e):
 	global server
