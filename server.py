@@ -54,19 +54,36 @@ def DataSimulationThread(update_interval, e):
 			# Write humidity to pymodbus register
 			client.write_register(1, humidity)
 
+			# Enable the gyroscope
+			sense.set_imu_config(False, True, False)
+
+			# Get orientation
+			orientation = sense.get_orientation_degrees()
+			pitch = orientation['pitch']
+			roll = orientation['roll']
+			yaw = orientation['yaw']
+
+			# TODO: Write pitch, roll, and yaw to pymodbus registers
+			client.write_register(2, pitch)
+			client.write_register(3, roll)
+			client.write_register(4, yaw)
+
                         # Display temp on the LED matrix
 			tempStrInF = Flt2Disp(tempInF)
 			sense.show_message(tempStrInF)
 
                         # Log our values
+                        print '**********************************************'
 			print 'Current temperature is ' + tempStrInF
 			print 'Current humidity is ' + str(humidity)
+			print 'Current pitch is ' + str(pitch)
+			print 'Current roll is ' + str(roll)
+			print 'Current yaw is ' + str(yaw)
 
 		else:
 			break
 	client.close()
 	print 'Data simulation thread stopped'
-
 
 def ServerThread(e):
 	global server
