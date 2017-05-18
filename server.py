@@ -12,33 +12,55 @@ from pymodbus.datastore import ModbusSlaveContext, ModbusServerContext
 from pymodbus.client.sync import ModbusTcpClient
 from pymodbus.server.sync import ModbusTcpServer
 
+from sense_hat import SenseHat
+
 global server
-global ip
+global cip
+global sip
 
-def GetCurrentTemperature():
-        return random.uniform(70, 95)
+def C2F(c):
+        return c*9/5 + 32
 
-def GetCurrentHumidity():
-        return random.uniform(80, 100)
+def Flt2Disp(f):
+        return "{0:.2f}".format(f)
 
 def DataSimulationThread(update_interval, e):
 	print 'Data simulation thread started'
+
+	# Allocate Sense HAT interface
+	sense = SenseHat()
+
+	# FIXME: Adjust rotation for my desktop
+	sense.set_rotation(180)	
 	
 	# Allocate a client	
-	client = ModbusTcpClient(ip)
+	client = ModbusTcpClient(cip)
 	
 	# Scan the data source
 	value = 0
 	while True:
 		if not e.isSet():
-			time.sleep(1)			
+			time.sleep(1)
 
-			#TODO: Write temperature to register			
-			#TODO: Write temperature to display			
-			#client.write_registers(0, GetCurrentTemperature())
-			#result = client.read_registers(0, 1)
-			#print 'Register 0 is currently ' + str(result[0])
-			print 'Nothing to see here'
+			# Retrieve temp
+			tempInF = C2F(sense.get_temperature())			
+			
+			# Write temp to pymodbus register
+			client.write_register(0, tempInF)
+
+			# Retrieve humidity
+			humidity = sense.get_humidity ()
+
+			# Write humidity to pymodbus register
+			client.write_register(1, humidity)
+
+                        # Display temp on the LED matrix
+			tempStrInF = Flt2Disp(tempInF)
+			sense.show_message(tempStrInF)
+
+                        # Log our values
+			print 'Current temperature is ' + tempStrInF
+			print 'Current humidity is ' + str(humidity)
 
 		else:
 			break
@@ -67,7 +89,7 @@ def ServerThread(e):
 	identity.MajorMinorRevision = '1.0'
 
 	# Run the server 
-	server = ModbusTcpServer(context, identity=identity, address=(ip, 502))
+	server = ModbusTcpServer(context, identity=identity, address=(sip, 502))
 	print 'Server started'
 	server.serve_forever(0.1)
 	print 'Server stopped'
@@ -75,12 +97,15 @@ def ServerThread(e):
 
 if __name__ == "__main__":
 	global server
-	global ip
+	global cip
+	global sip
 	print "=== Modbus Device ==="
 	parser = argparse.ArgumentParser(description='Modbus server')
-	parser.add_argument('ip',  default='localhost', help='IP adress of modbus server')
+	parser.add_argument('cip', nargs='?', default='localhost', help='IP adress of modbus client')
+	parser.add_argument('sip', nargs='?', default='0.0.0.0', help='IP adress of modbus server')
 	args = parser.parse_args()
-	ip = args.ip
+	sip = args.sip
+	cip = args.cip
 	
 	e_exit = threading.Event()
 	
