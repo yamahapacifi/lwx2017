@@ -43,8 +43,43 @@ def LEDMatrixDisplayThread(update_interval, e):
                         break
 
 
-def DataCollectionThread(update_interval, e):
+def doIo(sense, client):
         global tempInF
+        with lock:                        
+                # Retrieve temp
+                tempInF = C2F(sense.get_temperature())			
+                                
+                # Retrieve humidity
+                humidity = sense.get_humidity ()
+
+                # Enable the gyroscope
+                sense.set_imu_config(False, True, False)
+
+                # Get orientation
+                orientation = sense.get_orientation_degrees()
+                pitch = orientation['pitch']
+                roll = orientation['roll']
+                yaw = orientation['yaw']
+
+                # Enable the compass (disables the gyroscope)
+                north = sense.get_compass()
+
+                # Write temp to pymodbus register
+                client.write_register(0, tempInF)
+                        
+                # Write humidity to pymodbus register
+                client.write_register(1, humidity)
+
+                # Write pitch, roll, and yaw to pymodbus registers
+                client.write_register(2, pitch)
+                client.write_register(3, roll)
+                client.write_register(4, yaw)                                
+
+                # Write compass to pymodbus register
+                client.write_register(5, north)
+
+
+def DataCollectionThread(update_interval, e):
         global sense
         global lock
 	print 'Data simulation thread started'
@@ -58,41 +93,10 @@ def DataCollectionThread(update_interval, e):
 		if not e.isSet():
                         # Give some time back to the system
                         time.sleep(0.3)
-
-                        with lock:                        
-                                # Retrieve temp
-                                tempInF = C2F(sense.get_temperature())			
-                                
-                                # Retrieve humidity
-                                humidity = sense.get_humidity ()
-
-                                # Enable the gyroscope
-                                sense.set_imu_config(False, True, False)
-
-                                # Get orientation
-                                orientation = sense.get_orientation_degrees()
-                                pitch = orientation['pitch']
-                                roll = orientation['roll']
-                                yaw = orientation['yaw']
-
-                                # Enable the compass (disables the gyroscope)
-                                north = sense.get_compass()
-
-                                # Write temp to pymodbus register
-                                client.write_register(0, tempInF)
-                                        
-                                # Write humidity to pymodbus register
-                                client.write_register(1, humidity)
-
-                                # Write pitch, roll, and yaw to pymodbus registers
-                                client.write_register(2, pitch)
-                                client.write_register(3, roll)
-                                client.write_register(4, yaw)                                
-
-                                # Write compass to pymodbus register
-                                client.write_register(5, north)
+                        doIo(sense, client)                        
 		else:
 			break
+		
 	client.close()
 	print 'Data simulation thread stopped'
 	
