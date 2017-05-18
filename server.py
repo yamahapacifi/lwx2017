@@ -30,6 +30,7 @@ def LEDMatrixDisplayThread(update_interval, e):
         global tempInF
         global sense
         global lock
+        print 'LED matrix display thread started'
         while True:
 		if not e.isSet():
                         # Grab the latest value
@@ -41,6 +42,7 @@ def LEDMatrixDisplayThread(update_interval, e):
                         sense.show_message(Flt2Disp(tempInF))
                 else:
                         break
+        print 'LED matrix display thread stopped'
 
 
 def doIo(sense, client):
@@ -82,7 +84,7 @@ def doIo(sense, client):
 def DataCollectionThread(update_interval, e):
         global sense
         global lock
-	print 'Data simulation thread started'
+	print 'Data collection thread started'
 	
 	# Allocate a client	
 	client = ModbusTcpClient(cip)
@@ -98,7 +100,7 @@ def DataCollectionThread(update_interval, e):
 			break
 		
 	client.close()
-	print 'Data simulation thread stopped'
+	print 'Data collection thread stopped'
 	
 
 def ServerThread(e):
