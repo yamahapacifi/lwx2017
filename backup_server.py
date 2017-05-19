@@ -12,8 +12,6 @@ from pymodbus.datastore import ModbusSlaveContext, ModbusServerContext
 from pymodbus.client.sync import ModbusTcpClient
 from pymodbus.server.sync import ModbusTcpServer
 
-from sense_hat import SenseHat
-
 global server
 global cip
 global sip
@@ -28,7 +26,6 @@ def Flt2Disp(f):
 
 def LEDMatrixDisplayThread(update_interval, e):
         global tempInF
-        global sense
         global lock
         print 'LED matrix display thread started'
         while True:
@@ -37,34 +34,29 @@ def LEDMatrixDisplayThread(update_interval, e):
                         temp = 0
                         with lock:
                                 temp = tempInF
-
-                        # Is API thread safe?
-                        sense.show_message(Flt2Disp(tempInF))
+                        print 'Temp: ' + Flt2Disp(tempInF) + ' degrees F'
+                        time.sleep(0.5)
                 else:
                         break
         print 'LED matrix display thread stopped'
 
 
-def doIo(sense, client):
+def doIo(client):
         global tempInF
         with lock:                        
                 # Retrieve temp
-                tempInF = C2F(sense.get_temperature())			
+                tempInF = random.uniform(60, 95)
                                 
                 # Retrieve humidity
-                humidity = sense.get_humidity ()
-
-                # Enable the gyroscope
-                sense.set_imu_config(False, True, False)
+                humidity = random.uniform(30, 100)
 
                 # Get orientation
-                orientation = sense.get_orientation_degrees()
-                pitch = orientation['pitch']
-                roll = orientation['roll']
-                yaw = orientation['yaw']
+                pitch = random.uniform(0,360)
+                roll = random.uniform(0, 360)
+                yaw = random.uniform(0, 360)
 
                 # Enable the compass (disables the gyroscope)
-                north = sense.get_compass()
+                north = random.uniform(0, 360)
 
                 # Write temp to pymodbus register
                 client.write_register(0, tempInF)
@@ -82,7 +74,6 @@ def doIo(sense, client):
 
 
 def DataCollectionThread(update_interval, e):
-        global sense
         global lock
 	print 'Data collection thread started'
 	
@@ -95,7 +86,7 @@ def DataCollectionThread(update_interval, e):
 		if not e.isSet():
                         # Give some time back to the system
                         time.sleep(0.3)
-                        doIo(sense, client)                        
+                        doIo(client)                        
 		else:
 			break
 		
@@ -135,12 +126,10 @@ if __name__ == "__main__":
 	global cip
 	global sip
 	global tempInF
-	global sense
 	global lock
 
         # Allocate globals
         tempInF = 0
-        sense = SenseHat()
         lock = threading.Lock()
 	
 	print "=== Modbus Device ==="
